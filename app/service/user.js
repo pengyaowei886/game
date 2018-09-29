@@ -58,6 +58,7 @@ class UserService extends Service {
                 open_id: open_id,
                 name: data,//要修改
                 head_pic: data,//要修改
+                play_pic:"http://127.0.0.1/public/user.png",
                 name_allow: 1, //名字是否可以修改 0不可修改 1可修改
                 now_strength: 10,
                 max_strength: 10,
@@ -176,7 +177,7 @@ class UserService extends Service {
             }
         });
         if (share_now) {
-            if (share_now.share.num > 3) { //不再回复满体力
+            if (share_now.share.num > 3) { //大于三次，不再回复满体力
                 await db.collection('user').updateOne({ _id: uid }, { $inc: { 'share.num': 1 } })
             } else {
                 //回复满体力

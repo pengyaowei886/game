@@ -87,7 +87,7 @@ class BattleService extends Service {
         random = Math.floor(Math.random() * result.length + 1);
         i++;
       }
-
+      random=12;
       let battle_info = await db.collection('user').findOne({ _id: random }, { projection: { name: 1, head_pic: 1, now_strength: 1 } });
       let battle_equ = await db.collection('user_equ').findOne({ _id: random });
       data.battle_user.uid = random;
@@ -108,22 +108,22 @@ class BattleService extends Service {
       if (battle_equ.foot.strength) {
         foot = battle_equ.foot.strength;
       }
-    
+
       //插入对战表
-   
+
       db.collection('battle').insertOne({
         _id: uid,
-        type: 2, //2匹配 3排位
+        type: 1, //1匹配 2排位
         battle_user: battle_info._id, //对手id
         self_strength: self_info.now_strength, //自身体力
         battle_strength: battle_info.now_strength + head + body + foot, //对手体力
-        self_attack:self_equ.hand.attack||0, //自己攻击力
-        battle_attack:battle_equ.hand.attack||0,//对手攻击力
-        head: self_equ.head.naijiu||0, //头部装备耐久
-        body: self_equ.body.naijiu||0,  //身部装备耐久
-        foot: self_equ.foot.naijiu||0,  //脚部装备耐久
+        self_attack: self_equ.hand.attack || 0, //自己攻击力
+        battle_attack: battle_equ.hand.attack || 0,//对手攻击力
+        head: self_equ.head.naijiu || 0, //头部装备耐久
+        body: self_equ.body.naijiu || 0,  //身部装备耐久
+        foot: self_equ.foot.naijiu || 0,  //脚部装备耐久
       });
-    
+
       return data;
     }
     if (type == 3) { //排位 (比自己排名高，如果自身在前十，前十任选一个)
@@ -142,6 +142,7 @@ class BattleService extends Service {
         random = Math.floor(Math.random() * n + 1);
         i++;
       }
+     
       let battle_info = await db.collection('user').findOne({ _id: random }, { projection: { name: 1, head_pic: 1, now_strength: 1 } });
       let battle_equ = await db.collection('user_equ').findOne({ _id: random });
       data.battle_user.uid = random;
@@ -166,7 +167,7 @@ class BattleService extends Service {
       //插入对战表
       db.collection('battle').insertOne({
         _id: user.uid,
-        type: 3, //2匹配 3排位
+        type: 2, //1匹配 2排位
         battle_user: battle_info.uid, //对手id
         self_strength: self_info.now_strength, //自身体力
         battle_strength: battle_info.now_strength + head + body + foot, //对手体力
@@ -183,7 +184,7 @@ class BattleService extends Service {
    *  开始战斗
    * 
    */
-  async battle(user, battle_user, miaosha) {
+  async battle(user, battle_user) {
     let handerThis = this;
     const { ctx, app } = handerThis;
     let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord  
@@ -196,17 +197,40 @@ class BattleService extends Service {
     let battle_info = await db.collection('user').findOne({ _id: battle_user.uid });
 
     if (user.touzi > battle_user.touzi) { //自己先出手
-      if (user.touzi + res_exist.hand >= res_exist.battle_strength) {
+      if (user.touzi + res_exist.self_attack >= res_exist.battle_strength) {
         //击败对手 直接删除临时对战表
         await db.collection('battle').deleteOne({ _id: user.uid });
         //并删除手部武器
-        await db.collection('user_equ').updateOne({ _id: user.uid }, { $set: { hand: {} } });
+        await db.collection('user_equ').updateOne({ _id: user.uid }, { $set: {hand: {} } });
+        //如果用户相对战斗开始之前血量 减少, 修改用户血量
+        if (self_info.now_strength > res_exist.self_strength) {
+          await db.collection('user').updateOne({ _id: user.uid }, { $set: { now_strength: res_exist.now_strength } });
+        }
+        //修改装备耐久
+        let options={
+          $set:{
+            head:{},
+            body:{},
+            foot:{}
+          }
+        }
+        if(res_exist.head>0){
+         options.$set.head.naijiu=res_exist.head;
+        }
+        if(res_exist.body>0){
+          options.$set.body.naijiu=res_exist.body;
+         }
+         if(res_exist.foot>0){
+          options.$set.foot.naijiu=res_exist.foot;
+         }
+         await db.collection('user_equ').updateOne({ _id: user.uid },options);
+
         //如果是匹配对战
         if (res_exist.type == 1) {
           //获得十点金币奖励
           await db.collection('user').updateOne({ _id: user.uid }, { $inc: { money: 10 } });
           //保存对战记录
-          this.save_battle(user.uid, battle_user_uid, 1, 1);
+          this.save_battle(user.uid, battle_user.uid, 1, 1);
         }
         //如果是排位对战
         if (res_exist.type == 2) {
@@ -218,64 +242,53 @@ class BattleService extends Service {
           //保存对战记录
           this.save_battle(user.uid, battle_user_uid, 2, 1);
         }
-        //保存对战记录
-        this.save_battle(user.uid, battle_user_uid, type, 1);
-        data.attack = user.touzi + res_exist.hand;
+        data.attack = user.touzi + res_exist.self_attack;
         return data;
       } else {
         //未击败对手，修改临时对战表
         await db.collection('battle').updateOne({ _id: user.uid }, {
           $set: {
-            battle_strength: strength_battle - (user.touzi + hand), //修改对手体力
+            battle_strength: res_exist.battle_strength - (user.touzi + res_exist.self_attack), //修改对手体力
             self_attack: 0  //修改武器攻击力 
           }
         });
         // 自己先出手 对敌人造成 xxx伤害 战斗未结束
-        data.attack = user.touzi + res_exist.hand;
+        data.attack = user.touzi + res_exist.self_attack;
         return data;
       }
     } else {   //自己后出手
       //被对方击败
-      if (battle_user.touzi + battle_hand >= res_exist.self_strength) {
+      if (battle_user.touzi + res_exist.battle_attack >= res_exist.self_strength) {
         //修改各位置武器耐久
-        let options = {
-          $set: {
-          }
-        };
-        if (self.head.naijiu) {
-          if (self.head.naijiu > 1) {
-            options.$set[`head.naijiu`] = self.head.naijiu - 1;
-          } else {
-            options.$set[`head`] = {};
+        let options={
+          $set:{
+            head:{},
+            body:{},
+            foot:{}
           }
         }
-        if (self.body.naijiu) {
-          if (self.body.naijiu > 1) {
-            options.$set[`body.naijiu`] = self.body.naijiu - 1;
-          } else {
-            options.$set[`body`] = {};
-          }
+        if(res_exist.head>0){
+         options.$set.head.naijiu=res_exist.head;
         }
-        if (self.foot.naijiu) {
-          if (self.foot.naijiu > 1) {
-            options.$set[`foot.naijiu`] = self.foot.naijiu - 1;
-          } else {
-            options.$set[`foot`] = {};
-          }
-        }
+        if(res_exist.body>0){
+          options.$set.body.naijiu=res_exist.body;
+         }
+         if(res_exist.foot>0){
+          options.$set.foot.naijiu=res_exist.foot;
+         }
         // 直接删除临时对战表
         await db.collection('battle').deleteOne({ _id: user.uid });
         if (res_exist.type == 1) { //匹配对战
-          this.save_battle(user.uid, battle_user_uid, 1, 0);
+          this.save_battle(user.uid, battle_user.uid, 1, 0);
         }
         if (res_exist.type == 2) { //排位对战
-          this.save_battle(user.uid, battle_user_uid, 2, 0);
+          this.save_battle(user.uid, battle_user.uid, 2, 0);
         }
         // 各部位装备耐久度-1
         await db.collection('user_equ').updateOne({ _id: user.uid }, options);
         //扣除用户血量
+
         await db.collection('user').updateOne({ _id: user.uid }, { $set: { now_strength: 0 } });
-        // 对手先出手 对自己造成 xxx伤害 战斗结束
         data.attack = battle_user.touzi + res_exist.battle_attack;
         return data;
       } else {
@@ -285,11 +298,18 @@ class BattleService extends Service {
           $set: {
           }
         };
-        options.$set[`head`] = res_exist_sec.head - 1;
-        options.$set[`body`] = res_exist_sec.body - 1;
-        options.$set[`foot`] = res_exist_sec.foot - 1;
+        if(res_exist.head>0){
+          options.$set[`head`] = res_exist.head - 1;
+        }
+      if(res_exist.body>0){
+        options.$set[`body`] = res_exist.body - 1;
+      }
+      if(res_exist.foot>0){
+        options.$set[`foot`] = res_exist.foot - 1;
+      }
         //修改自身血量
-        options.$set[`self_strength`] = res_exist_sec.self_strength - (battle_user.touzi + res_exist.battle_attack);
+        options.$set[`self_strength`] = res_exist.self_strength - (battle_user.touzi + res_exist.battle_attack);
+        //修改对方攻击值
         options.$set[`battle_attack`] = 0;
         await db.collection('battle').updateOne({ _id: user.uid }, options);
         //对手先出手 对自己造成 xxx伤害 战斗未结束
