@@ -139,7 +139,7 @@ class UserService extends Service {
                 id_array.push(result[i]._id);
             }
         }
-        //如果有
+        //增加一点体力
         if (id_array.length != 0) {
             await db.collection('user').updateMany({ _id: { $in: id_array } }, { $inc: { now_strength: 1 } });
         }
@@ -287,6 +287,7 @@ class UserService extends Service {
         };
         let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord 
         let result = await db.collection('user').findOne({ _id: uid });
+    
         if (result.name_allow == 0) {
             return data;
         }

@@ -21,24 +21,6 @@ class BattleController extends Controller {
             return handerThis.error('HANDLE_ERROR', error['message']);
         }
     }
-    /*
-   *
-   * 获取对战骰子数
-   */
-    async get_touzi() {
-        let handerThis = this;
-        const { ctx, app, service } = handerThis;
-        let n = Number(ctx.query.n);
-        if (isNaN(n)) { //n是非整形
-            return handerThis.error('PARAMETERS_ERROR', "uid不能转化为整形");
-        }
-        try {
-            let data = await service.battle.get_touzi(n);
-            return handerThis.succ(data);
-        } catch (error) {
-            return handerThis.error('HANDLE_ERROR', error['message']);
-        }
-    }
     /**
     *  用户开始对战
     */

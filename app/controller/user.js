@@ -15,7 +15,7 @@ class UserController extends Controller {
         try {
             //使用插件进行验证 validate    
             ctx.validate({
-                code: {//字符串 必填 不允许为空字符串 // 小程序使用wx.login得到的 临时登录凭证code,开发者服务器使用,临时登录凭证code获取 session_key和openid
+                code: {//字符串 必填 不允许为空字符串 ， 小程序使用wx.login得到的 临时登录凭证code,开发者服务器使用,临时登录凭证code获取 session_key和openid
                     type: 'string', required: true, allowEmpty: false
                 },
                 user_info: {

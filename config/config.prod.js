@@ -19,15 +19,14 @@ module.exports = appInfo => {
       allowMethods: 'GET,POST,PUT,DELETE',
       credentials: true
     }
-
   config.mongo = {
     clients: {
       GAME: {
         host: '116.196.93.58',
         port: '27017',
         name: 'game',
-        user: '',
-        password: '',
+        user: 'admin',
+        password: '159370pyw',
         options: {useNewUrlParser: true},
       }
     }

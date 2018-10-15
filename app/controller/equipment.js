@@ -36,7 +36,7 @@ class EquipmentController extends Controller {
             uid: {//整形 必填 不允许为空字符串 
                 type: 'int', required: true, allowEmpty: false
             },
-            equ_id:{
+            num:{
                 type: 'int', required: true, allowEmpty: false
             },
             place:{
@@ -52,10 +52,10 @@ class EquipmentController extends Controller {
         return handerThis.error('PARAMETERS_ERROR', logContent);
     }
     let uid=ctx.request.body.uid;
-    let equ_id=ctx.request.body.equ_id;
+    let num=ctx.request.body.num;
     let place=ctx.request.body.place;
     try {
-        let data = await service.equipment.user_buy_equ(uid,equ_id,place);
+        let data = await service.equipment.user_buy_equ(uid,place,num);
         return handerThis.succ(data);
     } catch (error) {
         return handerThis.error('HANDLE_ERROR', error['message']);  
