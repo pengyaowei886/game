@@ -2,8 +2,8 @@
 const Service = require('egg').Service;
 class UserService extends Service {
     /*
-    * 验证用户登录身份
-    *  2018年9月17日
+    * 微信验证用户登录身份
+    * 
     */
     async LoginCode(code, userInfo) {//接收客户端发送过来的信息，其中包括code和appid
         /*
@@ -50,6 +50,9 @@ class UserService extends Service {
             filter._id = result_user._id;
         } else {
             let seqs = await handerThis.ctx.service.counter.getNextSequenceValue('user', 1); //获取自增序列
+            if (!seqs) {
+                throw new Error("获取自增序列失败");
+            }
             filter._id = seqs;
         }
         //更新字段
@@ -58,10 +61,10 @@ class UserService extends Service {
                 open_id: open_id,
                 name: data,//要修改
                 head_pic: data,//要修改
-                play_pic:"http://127.0.0.1/public/user.png",
+                //play_pic:"http://127.0.0.1/public/user.png",
                 name_allow: 1, //名字是否可以修改 0不可修改 1可修改
-                now_strength: 10,
-                max_strength: 10,
+                now_strength: 30,
+                max_strength: 30,
                 order: seqs,//排名
                 is_test: 0 //是否完成引导页 0未完成 1已完成
             }
@@ -75,9 +78,60 @@ class UserService extends Service {
             throw new Error("更新用户数据失败");
         }
         //生成该用户的初始装备信息
-        await db.collection('user_equ').insertOne({ _id: uid, head: {}, hand: {}, body: {}, foot: {}});
+        await db.collection('user_equ').insertOne({ _id: uid, head: {}, hand: {}, body: {}, foot: {} });
         return databack;
     };
+    /*
+    * facebook验证用户登录身份
+    * 
+    */
+    async facebookLogin(name, head_pic, id) {//接收客户端发送过来的信息，其中包括code和appid
+        /*
+        * 首先读取本地 3_rdSession 是否存在，如果存在。判断是否过期。过期再生成一个存放本地（前端做）
+        * 如果不存在 往下走
+        */
+        let handerThis = this;
+        const { ctx, app } = handerThis;
+        let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord
+        let data = {};
+        let res_exit = await db.collection('user').findOne({ open_id: id });
+        if (res_exit) {
+            //用户存在，则更新基本信息
+            await db.collection('user').updateOne({ open_id: id }, { $set: { name: name, head_pic: head_pic } });
+            return data={};
+        } else {
+            let filter = {
+            }
+            let seqs = await handerThis.ctx.service.counter.getNextSequenceValue('user', 1); //获取自增序列
+            if (!seqs) {
+                throw new Error("获取自增序列失败");
+            }
+            filter._id = seqs;
+            let update = {
+                $set: {
+                    open_id: id,
+                    name: name,
+                    head_pic: head_pic,
+                    name_allow: 1, //名字是否可以修改 0不可修改 1可修改
+                    now_strength: 30,
+                    max_strength: 30,
+                    order: seqs,//排名
+                    is_test: 0 //是否完成引导页 0未完成 1已完成
+                }
+            }
+            //操作参数
+            let options = {
+                upsert: true//如果没有数据新增一条 
+            }
+          await db.collection('user').findOneAndUpdate(filter, update, options);
+            //生成该用户的初始装备信息
+            await db.collection('user_equ').insertOne({ _id: seqs, head: {}, hand: {}, body: {}, foot: {} });
+            return data;
+        }
+        //更新字段
+        
+    };
+
     /*
     * 查看用户基本信息
     */
@@ -109,9 +163,9 @@ class UserService extends Service {
         }
         let options = {
             name: 1,
-            play_pic: 1,//游戏人物形象
+            //play_pic: 1,//游戏人物形象
             head_pic: 1,
-            head_num: 1,
+            name_allow: 1,
             now_strength: 1,
             max_strength: 1,
             money: 1,
@@ -228,7 +282,7 @@ class UserService extends Service {
         }
         //更新数据
         await db.collection('user').updateOne({ _id: uid }, { $set: { accept_people: invite_logs_result._id } }, { upsert: true });
-        
+
         //添加到邀请记录（原子操作）
         await db.collection('user').findOneAndUpdate({
             _id: invite_logs_result._id
@@ -260,7 +314,7 @@ class UserService extends Service {
                     $gte: order - 9,
                     $lte: order
                 }
-            }, { projection: { name: 1, order: 1, _id: 0 } }).toArray();
+            }, { projection: { name: 1, order: 1, _id: 0 } }).sort({ order: 1 }).toArray();
             return_data.order = result;
             return return_data;
         }
@@ -287,7 +341,7 @@ class UserService extends Service {
         };
         let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord 
         let result = await db.collection('user').findOne({ _id: uid });
-    
+
         if (result.name_allow == 0) {
             return data;
         }

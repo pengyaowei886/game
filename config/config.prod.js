@@ -11,13 +11,14 @@ module.exports = appInfo => {
 //安全验证
   config.security = {
     csrf: {
-      enable: false
+      enable: false //暂不开
     }
   };
   //请求格式和是否跨域
     config.cors = {
-      allowMethods: 'GET,POST,PUT,DELETE',
-      credentials: true
+      allowMethods: 'GET,POST,PUT,DELETE,OPTIONS',
+      credentials: true,
+      origin:'*'
     }
   config.mongo = {
     clients: {

@@ -7,7 +7,7 @@ class BattleService extends Service {
     let handerThis = this;
     const { ctx, app } = handerThis;
     let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord  
-    let result = await db.collection('battle_record').findOne({ _id: uid });
+    let result = await db.collection('battle_record').findOne({ _id: uid },{projection:{battle_name:1,is_succ:1}});
     let skip = result.record.length;
     let data = [];
     //取得最新的10条记录，不足10条全部显示
@@ -39,9 +39,10 @@ class BattleService extends Service {
     battle_user: {
 
     }
-   
   }
-  
+  if(self_info.now_strength==0){
+    return data;
+  }
   data.user.uid = self_info._id;
   let head = 0;
   let body = 0;
@@ -192,7 +193,7 @@ class BattleService extends Service {
         await db.collection('user_equ').updateOne({ _id: user.uid }, { $set: { hand: {} } });
         //如果用户相对战斗开始之前血量减少, 修改用户血量
         if (self_info.now_strength > res_exist.self_strength) {
-          await db.collection('user').updateOne({ _id: user.uid }, { $set: { now_strength: res_exist.now_strength } });
+          await db.collection('user').updateOne({ _id: user.uid }, { $set: { now_strength: res_exist.self_strength } });
         }
         //修改装备耐久
         let options = {
@@ -331,6 +332,7 @@ class BattleService extends Service {
     const { ctx, app } = handerThis;
     let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord  
     let is_exist = await db.collection('battle_record').findOne({ _id: uid });
+    let result_name=await db.collection('user').findOne({ _id: uid});
     if (!is_exist) {
       await db.collection('battle_record').insertOne({
         _id: uid, record: [
@@ -338,6 +340,7 @@ class BattleService extends Service {
             _id: 1,
             uid: battle_uid, //对手用户id
             type: type,//对战类型 1实时对战 2排位战
+            battle_name:result_name.name,
             is_succ: is_succ,//是否胜利 0否 1是
             time: new Date() //对战时间 
           }
@@ -350,6 +353,7 @@ class BattleService extends Service {
             _id: is_exist.record.length + 1,
             uid: battle_uid, //对手用户id
             type: type,//对战类型 1实时对战 2排位战
+            battle_name:result_name.name,
             is_succ: is_succ,//是否胜利 0否 1是
             time: new Date() //对战时间 
           }

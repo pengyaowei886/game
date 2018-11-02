@@ -8,18 +8,21 @@ class UserController extends Controller {
     /*
      * 验证用户身份
      */
-    async LoginCode() {
+    async facebookLogin() {
         let handerThis = this;
         const { ctx, app, service } = handerThis;
         //参数校验
         try {
             //使用插件进行验证 validate    
             ctx.validate({
-                code: {//字符串 必填 不允许为空字符串 ， 小程序使用wx.login得到的 临时登录凭证code,开发者服务器使用,临时登录凭证code获取 session_key和openid
+                name: {//字符串 必填 不允许为空字符串 ， 小程序使用wx.login得到的 临时登录凭证code,开发者服务器使用,临时登录凭证code获取 session_key和openid
                     type: 'string', required: true, allowEmpty: false
                 },
-                user_info: {
-                    type: 'object', required: true
+                head_pic: {
+                    type: 'string', required: true,llowEmpty: false
+                },
+                id:{
+                    type: 'string', required: true, allowEmpty: false
                 }
             }, ctx.request.body);
         } catch (e) {
@@ -31,13 +34,14 @@ class UserController extends Controller {
             return handerThis.error('PARAMETERS_ERROR', logContent);
         }
         //业务逻辑
-        let user_info = ctx.request.body.userInfo;
-        let code = ctx.request.body.code;
+        let name = ctx.request.body.name;
+        let head_pic = ctx.request.body.head_pic;
+        let id = ctx.request.body.id;
         try {
-            let data = await service.user.LoginCode(code, user_info);
-            if (data == 0) {
-                return handerThis.succ();
-            }
+            let data = await service.user.facebookLogin(name, head_pic,id);
+            
+                return handerThis.succ(data);
+            
         } catch (error) {
             return handerThis.error('HANDLE_ERROR', error['message']);
         }

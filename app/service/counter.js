@@ -15,19 +15,13 @@ class CounterService extends Service {
         let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord
         let table_name = 'counter';
         let table_function = db.collection(table_name);
-        var cond = { _id: sequenceName };
+        var cond = { sequenceName: sequenceName };
         var update = { $inc: { seq: count } };
-        var opts = {  };
-
-        let item = await table_function.findOneAndUpdate(cond, update, opts);
+        let item = await table_function.findOneAndUpdate(cond, update);
         if (item.value == null) {
             throw new Error('不支持该种类型的数据');
         }
-        var retval = [];
-        var base = item.value.seq - count;
-        for (var ix = 0; ix < count; ix++) {
-            retval.push(base + ix);
-        }
+        let retval=item.value.seq;
         return retval;
     }
 }

@@ -46,24 +46,55 @@ class EquipmentService extends Service {
         let handerThis = this;
         const { ctx, app } = handerThis;
         let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord  
-        let data={
-            
+        let data = {
+            info: {}
         }
+        let res_exit= await db.collection('user_equ').findOne({ _id:uid});
         let user_info = await db.collection('user').findOne({ _id: uid });
-        let result = await db.collection('equipment').findOne({place: place, num: num });
+        let result = await db.collection('equipment').findOne({ place: place, num: num });
+    
+        if (place==1){
+            if(JSON.stringify(res_exit.head) !== "{}"){
+                data.info=null;
+                return data;
+            }
+        }
+        if (place==2){
+            if(JSON.stringify(res_exit.hand) !== "{}"){
+                data.info=null;
+                return data;
+            }
+        }
+        if (place==3){
+            if(JSON.stringify(res_exit.foot) !=="{}"){
+                data.info=null;
+                return data;
+            }
+        }
+        if (place==4){
+            if(JSON.stringify(res_exit.body) !== "{}"){
+                data.info=null;
+                return data;
+            }
+        }
         if (result) {
             if (user_info.money < result.price) {
-                data.is_succ=0;
                 return data;  //金币不足
             }
             //扣除用户金币
             await db.collection('user').updateOne({ _id: uid }, { $set: { money: user_info.money - result.price } });
             //用户穿戴装备
-           this.take_equ(uid,result._id,place);
-           data.is_succ=1;//购买成功 
-           return data; 
-        } else {
-            throw new Error("该装备不存在");
+            this.take_equ(uid, result._id, place);
+            data.info._id = result._id;
+            data.info.name = result.name;
+            if (place == 2) {
+                data.attack = result.attack;
+                return data;
+            }
+            data.info.strength = result.strength;
+            data.info.naijiu = result.naijiu;
+            data.info.price = result.price;
+            return data;
         }
     }
     //用户穿戴装备 (非api)
@@ -72,6 +103,7 @@ class EquipmentService extends Service {
         const { ctx, app } = handerThis;
         let db = this.app.mongo.get('GAME')['db'];//获取数据库WLWord
         let result = await db.collection('equipment').findOne({ _id: equ_id});
+      
         let options = {
             $set: {}
         }
@@ -97,7 +129,7 @@ class EquipmentService extends Service {
         }
         if (place == 3) {
             options.$set = {
-                body: {
+                foot: {
                     _id: equ_id,
                     name: result.name,
                     strength: result.strength,
@@ -107,7 +139,7 @@ class EquipmentService extends Service {
         }
         if (place == 4) {
             options.$set = {
-                foot: {
+               body: {
                     _id: equ_id,
                     name: result.name,
                     strength: result.strength,
@@ -115,7 +147,7 @@ class EquipmentService extends Service {
                 }
             }
         }
-        await db.collection('user_equ').updateOne({ _id: uid }, options);
+        await db.collection('user_equ').updateOne({ _id:uid }, options);
     }
 }
 
